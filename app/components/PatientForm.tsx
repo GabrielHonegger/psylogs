@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react'
+import { useEffect, useState } from 'react';
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { z } from "zod"
@@ -18,8 +19,8 @@ import {
   SelectValue,
   SelectGroup,
   SelectLabel
-} from "@/components/ui/select"
-
+} from "@/components/ui/select";
+import { useRouter } from 'next/navigation';
 
 const nucleos = [
   {
@@ -78,6 +79,8 @@ const formSchema = z.object({
 })
 
 export default function IdentificationDataForm() {
+  const router = useRouter();
+
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -90,30 +93,54 @@ export default function IdentificationDataForm() {
     },
   });
 
-  const handleSubmit = () => {
-    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    console.log(JSON.stringify(form.getValues()))
-    fetch('/api/create-patient', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-         'X-CSRFToken': csrftoken,
-      },
-      body: JSON.stringify(form.getValues())
-    })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
+  const [csrfToken, setCsrfToken] = useState('');
+
+  useEffect(() => {
+    // Fetch CSRF token from Django
+    const fetchCsrfToken = async () => {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/csrf-token/');
+        const data = await response.json();
+
+        if (response.ok) {
+          setCsrfToken(data.csrfToken);
+        } else {
+          console.error('Failed to fetch CSRF token:', data);
+        }
+      } catch (error) {
+        console.error('Error fetching CSRF token:', error);
       }
-      return response.json();
-    })
-    .then(data => {
-      console.log(data);
-    })
-    .catch(error => {
-      console.error('There was a problem with POST request:', error);
-    })
-  }
+    };
+
+    fetchCsrfToken();
+  }, [])
+
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:8000/create-patient/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken,
+        },
+        body: JSON.stringify(form.getValues()),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok.');
+      }
+
+      const data = await response.json();
+      console.log('Patient created: ', data);
+
+      await router.push('/dashboard/patients/')
+
+    } catch (error) {
+      console.error('Error creating patient:', error);
+    }
+  };
+
   return (
     <div className="lg:w-1/3 w-11/12 m-auto flex flex-col gap-6">
       <h1 className="text-center text-2xl lg:text-3xl font-semibold">Novo Paciente</h1>
@@ -164,7 +191,7 @@ export default function IdentificationDataForm() {
             </FormItem>
           }} />
 
-          {/* Núcleo Familiar
+          {/* Núcleo Familiar */}
           <FormField control={form.control} name="nucleos" render={({field}) => {
             return (
               <FormItem>
@@ -176,7 +203,6 @@ export default function IdentificationDataForm() {
               </div>
               {nucleos.map((nucleo) => (
                 <FormField
-                  key={nucleo.id}
                   control={form.control}
                   name="nucleos"
                   render={({ field }) => {
@@ -210,7 +236,7 @@ export default function IdentificationDataForm() {
               <FormMessage />
             </FormItem>
             )
-          }} />  */}
+          }} />
 
           {/* Religião */}
           <FormField control={form.control} name="religiao" render={({field}) => {

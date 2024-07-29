@@ -16,7 +16,7 @@ const PatientTable = () => {
     //const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     const fetchPatients = async () => {
       try {
-        const response = await fetch('/api/patients', {
+        const response = await fetch('http://127.0.0.1:8000/patients/', {
           method: 'GET',
           headers: {
          //    'X-CSRFToken': csrftoken
