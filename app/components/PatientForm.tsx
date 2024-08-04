@@ -6,7 +6,7 @@ import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
+import { useForm, FormProvider } from "react-hook-form"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription }  from "@/components/ui/form"
 import { Label } from "./ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -26,22 +26,27 @@ const nucleos = [
   {
     id: "mae",
     label: "Mãe",
+    value: 1
   },
   {
     id: "pai",
     label: "Pai",
+    value: 2
   },
   {
     id: "irmaos",
     label: "Irmãos",
+    value: 4
   },
   {
     id: "filhos",
     label: "Filhos",
+    value: 8
   },
   {
     id: "avos",
     label: "Avós",
+    value: 16
   },
 ]
 
@@ -53,17 +58,13 @@ const formSchema = z.object({
     required_error: "A idade é obrigatória",
     invalid_type_error: "Idade inválida"
   }).positive({
-    message: "A idade precisa ser um número positivo."
+    message: "A idade precisa ser um número positivo"
   }).min(1).max(120),
   sexo: z.enum(["M", "F"], {
     required_error: "Escolha uma opção",
     message: "Escolha uma opção",
   }),
-  nucleos: z.number({
-    message: "Você precisa escolher pelo menos um núcleo familiar.",
-    required_error: "Você precisa escolher pelo menos um núcleo familiar.",
-    invalid_type_error: "Opção Inválida"
-  }),
+  nucleos: z.number(),
   religiao: z.enum(["C", "I", "H", 
   "B", "J", "E", "T", "A", "O"], {
     required_error: "Escolha uma opção",
@@ -141,6 +142,14 @@ export default function IdentificationDataForm() {
     }
   };
 
+  const handleCheckboxChange = (checked: boolean, value: number) => {
+    // Get the current total value
+    const currentTotal = form.getValues('nucleos');
+    // Update the total based on whether the checkbox is checked
+    const newTotal = checked ? currentTotal + value : currentTotal - value;
+    form.setValue('nucleos', Math.max(newTotal, 0)); // Prevent negative values
+  };
+
   return (
     <div className="lg:w-1/3 w-11/12 m-auto flex flex-col gap-6">
       <h1 className="text-center text-2xl lg:text-3xl font-semibold">Novo Paciente</h1>
@@ -192,51 +201,31 @@ export default function IdentificationDataForm() {
           }} />
 
           {/* Núcleo Familiar */}
-          <FormField control={form.control} name="nucleos" render={({field}) => {
-            return (
-              <FormItem>
+          <FormField control={form.control} name="nucleos" render={({ field }) => (
+            <FormItem>
               <div className="mb-4">
-                <FormLabel htmlFor="nucleos" className="text-base">Núcleo Familiar</FormLabel>
+                <FormLabel htmlFor="nucleos">Núcleo Familiar</FormLabel>
                 <FormDescription>
                   Selecione o(s) núcleo(s) familiar(es) do paciente.
                 </FormDescription>
               </div>
               {nucleos.map((nucleo) => (
-                <FormField
-                  control={form.control}
-                  name="nucleos"
-                  render={({ field }) => {
-                    return (
-                      <FormItem
-                        key={nucleo.id}
-                        className="flex flex-row items-start space-x-3 space-y-0"
-                      >
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value?.includes(nucleo.id)}
-                            onCheckedChange={(checked) => {
-                              return checked
-                                ? field.onChange([...field.value, nucleo.id])
-                                : field.onChange(
-                                    field.value?.filter(
-                                      (value) => value !== nucleo.id
-                                    )
-                                  )
-                            }}
-                          />
-                        </FormControl>
-                        <FormLabel htmlFor={`${nucleo.id}`} className="font-normal">
-                          {nucleo.label}
-                        </FormLabel>
-                      </FormItem>
-                    )
-                  }}
-                />
+                <div key={nucleo.id} className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={(field.value & nucleo.value) > 0}
+                      onCheckedChange={(checked) => handleCheckboxChange(checked, nucleo.value)}
+                    />
+                  </FormControl>
+                  <FormLabel htmlFor={nucleo.id} className="font-normal">
+                    {nucleo.label}
+                  </FormLabel>
+                </div>
               ))}
               <FormMessage />
             </FormItem>
-            )
-          }} />
+          )} />
+
 
           {/* Religião */}
           <FormField control={form.control} name="religiao" render={({field}) => {
